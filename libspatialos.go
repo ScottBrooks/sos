@@ -1,6 +1,6 @@
 package sos
 
-// #cgo LDFLAGS: -Wl,-rpath,\$ORIGIN -L${SRCDIR}/c_sdk -lworker
+// #cgo LDFLAGS: -Wl,-rpath,\$ORIGIN -L${SRCDIR}/c_sdk -limprobable_worker
 // #include "c_sdk/include/improbable/c_schema.h"
 // #include "c_sdk/include/improbable/c_worker.h"
 // #include <inttypes.h>
@@ -144,13 +144,13 @@ func (bc *BaseConstraint) ToConstraint() C.Worker_Constraint {
 	if bc.EntityID != nil {
 		c.constraint_type = C.WORKER_CONSTRAINT_TYPE_ENTITY_ID
 		constraint := C.Worker_EntityIdConstraint{entity_id: C.Worker_EntityId(*bc.EntityID)}
-		C.memcpy(unsafe.Pointer(&c.anon0), unsafe.Pointer(&constraint), C.sizeof_Worker_EntityIdConstraint)
+		C.memcpy(unsafe.Pointer(&c.constraint), unsafe.Pointer(&constraint), C.sizeof_Worker_EntityIdConstraint)
 
 	}
 	if bc.ComponentID != nil {
 		c.constraint_type = C.WORKER_CONSTRAINT_TYPE_COMPONENT
 		constraint := C.Worker_ComponentConstraint{component_id: C.Worker_ComponentId(*bc.ComponentID)}
-		C.memcpy(unsafe.Pointer(&c.anon0), unsafe.Pointer(&constraint), C.sizeof_Worker_ComponentConstraint)
+		C.memcpy(unsafe.Pointer(&c.constraint), unsafe.Pointer(&constraint), C.sizeof_Worker_ComponentConstraint)
 
 	}
 	log.Printf("Constraint: %+v -> %+v", bc, c)
@@ -197,8 +197,9 @@ type SpatialSystem struct {
 }
 
 func (ss *SpatialSystem) sendComponentUpdate(id int64, u *C.Worker_ComponentUpdate) {
+	var params C.Worker_UpdateParameters
 
-	C.Worker_Connection_SendComponentUpdate(ss.connection, C.int64_t(id), u)
+	C.Worker_Connection_SendComponentUpdate(ss.connection, C.int64_t(id), u, &params)
 }
 func (ss *SpatialSystem) AddDisturbance(x, y float32, amount float32) {
 }
@@ -295,58 +296,55 @@ func (ss *SpatialSystem) Update(dt float32) {
 			op := (*C.Worker_Op)(unsafe.Pointer(uintptr(unsafe.Pointer(op_list.ops)) + uintptr(i)*C.sizeof_Worker_Op))
 			switch op.op_type {
 			case C.WORKER_OP_TYPE_DISCONNECT:
-				disconnect := (*C.Worker_DisconnectOp)(unsafe.Pointer(&op.anon0))
+				disconnect := (*C.Worker_DisconnectOp)(unsafe.Pointer(&op.op))
 				ss.onDisconnect(disconnect)
 			case C.WORKER_OP_TYPE_FLAG_UPDATE:
-				flagUpdate := (*C.Worker_FlagUpdateOp)(unsafe.Pointer(&op.anon0))
+				flagUpdate := (*C.Worker_FlagUpdateOp)(unsafe.Pointer(&op.op))
 				ss.onFlagUpdate(flagUpdate)
 			case C.WORKER_OP_TYPE_LOG_MESSAGE:
-				logMessage := (*C.Worker_LogMessageOp)(unsafe.Pointer(&op.anon0))
+				logMessage := (*C.Worker_LogMessageOp)(unsafe.Pointer(&op.op))
 				ss.onLogMessage(logMessage)
 			case C.WORKER_OP_TYPE_METRICS:
-				metrics := (*C.Worker_Metrics)(unsafe.Pointer(&op.anon0))
+				metrics := (*C.Worker_Metrics)(unsafe.Pointer(&op.op))
 				ss.onMetrics(metrics)
 			case C.WORKER_OP_TYPE_CRITICAL_SECTION:
-				cs := (*C.Worker_CriticalSectionOp)(unsafe.Pointer(&op.anon0))
+				cs := (*C.Worker_CriticalSectionOp)(unsafe.Pointer(&op.op))
 				ss.onCriticalSection(cs)
 			case C.WORKER_OP_TYPE_ADD_ENTITY:
-				addEntity := (*C.Worker_AddEntityOp)(unsafe.Pointer(&op.anon0))
+				addEntity := (*C.Worker_AddEntityOp)(unsafe.Pointer(&op.op))
 				ss.onAddEntity(addEntity)
 			case C.WORKER_OP_TYPE_REMOVE_ENTITY:
-				removeEntity := (*C.Worker_RemoveEntityOp)(unsafe.Pointer(&op.anon0))
+				removeEntity := (*C.Worker_RemoveEntityOp)(unsafe.Pointer(&op.op))
 				ss.onRemoveEntity(removeEntity)
-			case C.WORKER_OP_TYPE_RESERVE_ENTITY_ID_RESPONSE:
-				reserveEntityId := (*C.Worker_ReserveEntityIdResponseOp)(unsafe.Pointer(&op.anon0))
-				ss.onReserveEntityId(reserveEntityId)
 			case C.WORKER_OP_TYPE_RESERVE_ENTITY_IDS_RESPONSE:
-				reserveEntityIds := (*C.Worker_ReserveEntityIdsResponseOp)(unsafe.Pointer(&op.anon0))
+				reserveEntityIds := (*C.Worker_ReserveEntityIdsResponseOp)(unsafe.Pointer(&op.op))
 				ss.onReserveEntityIds(reserveEntityIds)
 			case C.WORKER_OP_TYPE_CREATE_ENTITY_RESPONSE:
-				createEntity := (*C.Worker_CreateEntityResponseOp)(unsafe.Pointer(&op.anon0))
+				createEntity := (*C.Worker_CreateEntityResponseOp)(unsafe.Pointer(&op.op))
 				ss.onCreateEntity(createEntity)
 			case C.WORKER_OP_TYPE_DELETE_ENTITY_RESPONSE:
-				deleteEntity := (*C.Worker_DeleteEntityResponseOp)(unsafe.Pointer(&op.anon0))
+				deleteEntity := (*C.Worker_DeleteEntityResponseOp)(unsafe.Pointer(&op.op))
 				ss.onDeleteEntity(deleteEntity)
 			case C.WORKER_OP_TYPE_ENTITY_QUERY_RESPONSE:
-				entityQueryResponse := (*C.Worker_EntityQueryResponseOp)(unsafe.Pointer(&op.anon0))
+				entityQueryResponse := (*C.Worker_EntityQueryResponseOp)(unsafe.Pointer(&op.op))
 				ss.onEntityQueryResponse(entityQueryResponse)
 			case C.WORKER_OP_TYPE_ADD_COMPONENT:
-				addComponent := (*C.Worker_AddComponentOp)(unsafe.Pointer(&op.anon0))
+				addComponent := (*C.Worker_AddComponentOp)(unsafe.Pointer(&op.op))
 				ss.onAddComponent(addComponent)
 			case C.WORKER_OP_TYPE_REMOVE_COMPONENT:
-				removeComponent := (*C.Worker_RemoveComponentOp)(unsafe.Pointer(&op.anon0))
+				removeComponent := (*C.Worker_RemoveComponentOp)(unsafe.Pointer(&op.op))
 				ss.onRemoveComponent(removeComponent)
 			case C.WORKER_OP_TYPE_AUTHORITY_CHANGE:
-				authorityChange := (*C.Worker_AuthorityChangeOp)(unsafe.Pointer(&op.anon0))
+				authorityChange := (*C.Worker_AuthorityChangeOp)(unsafe.Pointer(&op.op))
 				ss.onAuthorityChange(authorityChange)
 			case C.WORKER_OP_TYPE_COMPONENT_UPDATE:
-				componentUpdate := (*C.Worker_ComponentUpdateOp)(unsafe.Pointer(&op.anon0))
+				componentUpdate := (*C.Worker_ComponentUpdateOp)(unsafe.Pointer(&op.op))
 				ss.onComponentUpdate(componentUpdate)
 			case C.WORKER_OP_TYPE_COMMAND_REQUEST:
-				commandRequest := (*C.Worker_CommandRequestOp)(unsafe.Pointer(&op.anon0))
+				commandRequest := (*C.Worker_CommandRequestOp)(unsafe.Pointer(&op.op))
 				ss.onCommandRequest(commandRequest)
 			case C.WORKER_OP_TYPE_COMMAND_RESPONSE:
-				commandResponse := (*C.Worker_CommandResponseOp)(unsafe.Pointer(&op.anon0))
+				commandResponse := (*C.Worker_CommandResponseOp)(unsafe.Pointer(&op.op))
 				ss.onCommandResponse(commandResponse)
 
 			default:
@@ -366,11 +364,13 @@ func (ss *SpatialSystem) Update(dt float32) {
 func (ss *SpatialSystem) UpdateComponent(ID EntityID, CID ComponentID, comp interface{}) {
 	var update C.Worker_ComponentUpdate
 	update.component_id = C.uint(CID)
-	update.schema_type = C.Schema_CreateComponentUpdate(update.component_id)
+	update.schema_type = C.Schema_CreateComponentUpdate()
 	obj := C.Schema_GetComponentUpdateFields(update.schema_type)
 	structToObj(obj, comp)
 
-	C.Worker_Connection_SendComponentUpdate(ss.connection, C.int64_t(ID), &update)
+	var params C.Worker_UpdateParameters
+
+	C.Worker_Connection_SendComponentUpdate(ss.connection, C.int64_t(ID), &update, &params)
 }
 
 func (ss *SpatialSystem) EntityQuery(bc BaseConstraint, fullQuery bool, components []ComponentID) RequestID {
@@ -443,9 +443,6 @@ func (ss *SpatialSystem) onRemoveEntity(op *C.Worker_RemoveEntityOp) {
 		ss.Entities = append(ss.Entities[:index], ss.Entities[index+1:]...)
 	}
 
-}
-func (ss *SpatialSystem) onReserveEntityId(op *C.Worker_ReserveEntityIdResponseOp) {
-	ss.handler.OnReserveEntityId(ReserveEntityIdOp{RID: RequestID(op.request_id), StatusCode: uint8(op.status_code), Message: C.GoString(op.message), ID: EntityID(op.entity_id)})
 }
 func (ss *SpatialSystem) onReserveEntityIds(op *C.Worker_ReserveEntityIdsResponseOp) {
 	ss.handler.OnReserveEntityIds(ReserveEntityIdsOp{RID: RequestID(op.request_id), StatusCode: uint8(op.status_code), Message: C.GoString(op.message), FirstID: EntityID(op.first_entity_id), Num: int(op.number_of_entity_ids)})

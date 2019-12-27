@@ -1,6 +1,6 @@
 package sos
 
-// #cgo LDFLAGS: -Wl,-rpath,\$ORIGIN -L${SRCDIR}/c_sdk -lworker
+// #cgo LDFLAGS: -Wl,-rpath,\$ORIGIN -L${SRCDIR}/c_sdk -limprobable_worker
 // #include "c_sdk/include/improbable/c_schema.h"
 // #include "c_sdk/include/improbable/c_worker.h"
 // #include <inttypes.h>
@@ -100,7 +100,7 @@ func structToSchema(cid ComponentID, s interface{}) C.Worker_ComponentData {
 
 	cd.component_id = C.uint(cid)
 
-	cd.schema_type = C.Schema_CreateComponentData(cd.component_id)
+	cd.schema_type = C.Schema_CreateComponentData()
 	obj := C.Schema_GetComponentDataFields(cd.schema_type)
 	structToObj(obj, s)
 
@@ -219,7 +219,7 @@ type simpleObject struct {
 }
 
 func getSimpleObject(val int) *C.Schema_Object {
-	st := C.Schema_CreateComponentData(1)
+	st := C.Schema_CreateComponentData()
 	obj := C.Schema_GetComponentDataFields(st)
 
 	C.Schema_AddInt32(obj, 1, C.int(val))
@@ -235,7 +235,7 @@ type complicatedObject struct {
 }
 
 func getComplicatedObject(i int, f float32, name string, x float32, y float32, z float32) *C.Schema_Object {
-	st := C.Schema_CreateComponentData(1)
+	st := C.Schema_CreateComponentData()
 	obj := C.Schema_GetComponentDataFields(st)
 
 	C.Schema_AddInt32(obj, 1, C.int(i))
@@ -261,7 +261,7 @@ type compoundObject struct {
 }
 
 func getCompoundObject(i int, f float32, name string) *C.Schema_Object {
-	st := C.Schema_CreateComponentData(1)
+	st := C.Schema_CreateComponentData()
 	obj := C.Schema_GetComponentDataFields(st)
 
 	iobj := C.Schema_AddObject(obj, 1)
@@ -277,7 +277,7 @@ func getCompoundObject(i int, f float32, name string) *C.Schema_Object {
 }
 
 func blankSchemaObject() *C.Schema_Object {
-	st := C.Schema_CreateComponentData(1)
+	st := C.Schema_CreateComponentData()
 	obj := C.Schema_GetComponentDataFields(st)
 	return obj
 
