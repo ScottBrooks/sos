@@ -109,6 +109,7 @@ func structToSchema(cid ComponentID, s interface{}) C.Worker_ComponentData {
 
 func handleSchemaField(o *C.Schema_Object, i int, j int, f reflect.Value) {
 	if !f.CanSet() {
+		log.Debugf("Can't set field: %v", f)
 		return
 	}
 	switch f.Kind() {
@@ -156,14 +157,21 @@ func handleSchemaField(o *C.Schema_Object, i int, j int, f reflect.Value) {
 		f.Set(slice)
 		log.Debugf("Got a slice: %+v %d", f, num)
 	case reflect.Map:
-		iter := f.MapRange()
-		for iter.Next() {
+		num := C.Schema_GetObjectCount(o, C.uint(i))
+		typ := reflect.TypeOf(f.Interface())
+		m := reflect.MakeMapWithSize(typ, int(num))
+		for j := 0; j < int(num); j++ {
 			obj := C.Schema_IndexObject(o, C.uint(i), C.uint(j))
-			handleStructField(obj, C.SCHEMA_MAP_KEY_FIELD_ID, iter.Key())
-			handleStructField(obj, C.SCHEMA_MAP_VALUE_FIELD_ID, iter.Value())
+			k := reflect.Indirect(reflect.New(typ.Key()))
+			v := reflect.Indirect(reflect.New(typ.Elem()))
+			handleSchemaField(obj, C.SCHEMA_MAP_KEY_FIELD_ID, 0, k)
+			handleSchemaField(obj, C.SCHEMA_MAP_VALUE_FIELD_ID, 0, v)
+
+			m.SetMapIndex(k, v)
 
 		}
 		log.Debugf("C.Schema_IndexObject %d: %+v", i, f)
+		f.Set(m)
 
 	case reflect.Ptr:
 		log.Printf("Got a pointer: %+v %+v", f, reflect.Indirect(f))
