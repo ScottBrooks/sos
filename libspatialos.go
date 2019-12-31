@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"strconv"
 
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -451,7 +450,7 @@ func (ss *SpatialSystem) onCreateEntity(op *C.Worker_CreateEntityResponseOp) {
 	ss.handler.OnCreateEntity(CreateEntityOp{RID: RequestID(op.request_id), StatusCode: uint8(op.status_code), Message: C.GoString(op.message), ID: EntityID(op.entity_id)})
 }
 func (ss *SpatialSystem) onDeleteEntity(op *C.Worker_DeleteEntityResponseOp) {
-	ss.handler.OnDeleteEntity(DeleteEntityOp{RID: RequestID(op.request_id), StatusCode: uint8(op.status_code), Message: C.GoString(op.message)})
+	ss.handler.OnDeleteEntity(DeleteEntityOp{RID: RequestID(op.request_id), ID: EntityID(op.entity_id), StatusCode: uint8(op.status_code), Message: C.GoString(op.message)})
 	if op.status_code == 1 {
 		//log.Printf("DeleteEntity: %+v %s", op, C.GoString(op.message))
 		ss.Remove(int64(op.entity_id))

@@ -1,8 +1,6 @@
 package sos
 
-import (
-	"log"
-)
+import ()
 
 func (ss *SpatialSystem) Remove(ID int64) {
 	delete := -1

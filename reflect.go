@@ -14,8 +14,10 @@ import (
 	"strconv"
 	"unsafe"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 func init() {
 	//log.SetLevel(log.DebugLevel)
@@ -46,6 +48,13 @@ func handleStructField(o *C.Schema_Object, i int, f reflect.Value) {
 		str := f.String()
 		log.Debugf("C.Schema_AddBytes %d: %s", i, str)
 		C.Schema_AddBytes(o, C.uint(i), (*C.uchar)(C.CBytes([]byte(str))), C.uint(len(str)))
+	case reflect.Bool:
+		log.Debugf("C.Schema_AddBoolean %d: %v", i, f.Bool())
+		if f.Bool() {
+			C.Schema_AddBool(o, C.uint(i), C.uint8_t(1))
+		} else {
+			C.Schema_AddBool(o, C.uint(i), C.uint8_t(0))
+		}
 	case reflect.Struct:
 		log.Debugf("C.Schema_AddObject %d: %+v", i, f.Interface())
 		obj := C.Schema_AddObject(o, C.uint(i))
