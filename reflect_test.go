@@ -1,7 +1,6 @@
 package sos
 
 import (
-	"log"
 	"testing"
 )
 
@@ -18,7 +17,7 @@ func TestSimpleSchemaDeserialization(t *testing.T) {
 }
 func TestComplicatedSchemaDeserialization(t *testing.T) {
 
-	obj := getComplicatedObject(1, 2.0, "hello", 1.0, 2.0, 3.0)
+	obj := getComplicatedObject(1, 2.0, "hello", 1.0, 2.0, 3.0, 500)
 	s2 := complicatedObject{}
 
 	schemaToStruct(&s2, obj)
@@ -34,6 +33,14 @@ func TestComplicatedSchemaDeserialization(t *testing.T) {
 	if s2.Pos[0] != 1.0 && s2.Pos[1] != 2.0 && s2.Pos[2] != 3.0 {
 		t.Error("Array values did not match")
 	}
+	log.Printf("S2: %+v", s2)
+	if s2.Ptr == nil {
+		t.Errorf("Pointer should not be nil")
+	}
+	if *s2.Ptr != 500 {
+		t.Error("Value not deserialized into pointer")
+	}
+
 }
 
 func TestCompoundSchemaDeserialization(t *testing.T) {

@@ -20,7 +20,7 @@ import (
 var log = logrus.New()
 
 func init() {
-	//log.SetLevel(log.DebugLevel)
+	//log.SetLevel(logrus.DebugLevel)
 }
 
 func handleStructField(o *C.Schema_Object, i int, f reflect.Value) {
@@ -79,6 +79,11 @@ func handleStructField(o *C.Schema_Object, i int, f reflect.Value) {
 		for j := 0; j < f.Len(); j++ {
 			v := f.Index(j)
 			handleStructField(o, i, v)
+		}
+	case reflect.Ptr:
+		if !f.IsZero() {
+			log.Printf("Got a pointer: %+v %+v", f, reflect.Indirect(f))
+			handleStructField(o, i, reflect.Indirect(f))
 		}
 
 	default:
@@ -151,6 +156,10 @@ func handleSchemaField(o *C.Schema_Object, i int, j int, f reflect.Value) {
 		l := C.Schema_IndexBytesLength(o, C.uint(i), C.uint(j))
 		f.SetString(C.GoStringN((*C.char)(unsafe.Pointer(b)), C.int(l)))
 		log.Debugf("C.Schema_IndexBytes %d: %s", i, f.String())
+	case reflect.Bool:
+		b := C.Schema_IndexBool(o, C.uint(i), C.uint(j))
+		f.SetBool(b == 1)
+		log.Debugf("C.Schema_IndexBool %d: %v", i, f.Bool())
 	case reflect.Struct:
 		obj := C.Schema_IndexObject(o, C.uint(i), C.uint(j))
 		schemaToStruct(f.Addr().Interface(), obj)
@@ -183,7 +192,11 @@ func handleSchemaField(o *C.Schema_Object, i int, j int, f reflect.Value) {
 		f.Set(m)
 
 	case reflect.Ptr:
-		log.Printf("Got a pointer: %+v %+v", f, reflect.Indirect(f))
+		ptr := reflect.New(reflect.TypeOf(f.Interface()).Elem())
+		ptrVal := reflect.Indirect(ptr)
+		handleSchemaField(o, i, j, ptrVal)
+		log.Debugf("Converted pointer to: %+v %+v", ptr, ptrVal)
+		f.Set(ptr)
 	case reflect.Array:
 		for j := 0; j < f.Len(); j++ {
 			v := f.Index(j)
@@ -249,9 +262,10 @@ type complicatedObject struct {
 	Float float32
 	Name  string
 	Pos   [3]float32
+	Ptr   *int32
 }
 
-func getComplicatedObject(i int, f float32, name string, x float32, y float32, z float32) *C.Schema_Object {
+func getComplicatedObject(i int, f float32, name string, x float32, y float32, z float32, ptr int) *C.Schema_Object {
 	st := C.Schema_CreateComponentData()
 	obj := C.Schema_GetComponentDataFields(st)
 
@@ -261,6 +275,7 @@ func getComplicatedObject(i int, f float32, name string, x float32, y float32, z
 	C.Schema_AddFloat(obj, 4, C.float(x))
 	C.Schema_AddFloat(obj, 4, C.float(y))
 	C.Schema_AddFloat(obj, 4, C.float(z))
+	C.Schema_AddInt32(obj, 5, C.int(ptr))
 
 	return obj
 }
