@@ -228,10 +228,11 @@ func ComponentIDsFromInterface(ent interface{}) []ComponentID {
 	t := reflect.TypeOf(ent)
 	for i := 0; i < v.NumField(); i++ {
 		st := t.Field(i)
-		if st.Tag.Get("sos") == "-" {
+		tag := st.Tag.Get("sos")
+		if tag == "-" || tag == "" {
 			continue
 		}
-		cid, err := strconv.Atoi(st.Tag.Get("sos"))
+		cid, err := strconv.Atoi(tag)
 		if err != nil {
 			log.Printf("Error in struct tag for %+v: %d", ent, i)
 		}
