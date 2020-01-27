@@ -26,6 +26,34 @@ type EntityID int64
 type RequestID uint32
 type ComponentID uint32
 
+type WorkerLoginCredentials struct {
+	Token string
+}
+
+type WorkerSteamCredentials struct {
+	Ticket        string
+	DeploymentTag string
+}
+
+type WorkerPlayerIdentityCredentials struct {
+	PlayerIdentityToken string
+	LoginToken          string
+}
+
+const WorkerLocatorLoginCredentials = 1
+const WorkerLocatorSteamCredentials = 2
+const WorkerLocatorPlayerIdentityCredentials = 3
+
+// More options are available in the sdk, but we're not going to try to support those for now.
+type WorkerLocatorParams struct {
+	ProjectName               string
+	CredentialsType           uint8
+	LoginCredentials          WorkerLoginCredentials
+	SteamCredentials          WorkerSteamCredentials
+	PlayerIdentityCredentials WorkerPlayerIdentityCredentials
+	UseInsecureConnection     bool
+}
+
 type WorkerEntity struct {
 	ID         EntityID
 	Components []interface{}
@@ -239,7 +267,7 @@ func (ss *SpatialSystem) Shutdown() {
 	C.Worker_Connection_Destroy(ss.connection)
 }
 
-func NewSpatialSystem(handler Adapter, host string, port int, workerID string) *SpatialSystem {
+func NewSpatialSystem(handler Adapter, host string, port int, workerID string, lp *WorkerLocatorParams) *SpatialSystem {
 	wt := handler.WorkerType()
 	if workerID == "" {
 		workerID = fmt.Sprintf("%s_%d", wt, rand.Intn(1024))
@@ -254,9 +282,36 @@ func NewSpatialSystem(handler Adapter, host string, port int, workerID string) *
 	default_vtable := (*C.Worker_ComponentVtable)(C.calloc(C.sizeof_Worker_ComponentVtable, 1))
 	params.worker_type = worker_type
 	params.network.tcp.multiplex_level = 4
+	params.network.use_external_ip = 1
 	params.default_component_vtable = default_vtable
+	params.enable_logging_at_startup = 1
+	params.logsink_count = 1
+	logsink := (*C.Worker_LogsinkParameters)(C.calloc(C.sizeof_Worker_LogsinkParameters, 1))
+	logsink.logsink_type = 5 // STDERR
+	logsink.filter_parameters.categories = 0xffff
+	logsink.filter_parameters.level = 0
+	params.logsinks = logsink
+
+	var connection_future *C.Worker_ConnectionFuture
 	addr := C.CString(host)
-	connection_future := C.Worker_ConnectAsync(addr, C.ushort(port), C.CString(ss.WorkerID), &params)
+	if lp != nil {
+		locParams := (*C.Worker_LocatorParameters)(C.calloc(C.sizeof_Worker_LocatorParameters, 1))
+		locParams.project_name = C.CString(lp.ProjectName)
+		locParams.credentials_type = C.uint8_t(lp.CredentialsType)
+		locParams.logsink_count = 1
+
+		locParams.logsinks = logsink
+		if lp.PlayerIdentityCredentials.PlayerIdentityToken != "" {
+			locParams.player_identity.player_identity_token = C.CString(lp.PlayerIdentityCredentials.PlayerIdentityToken)
+		}
+		if lp.PlayerIdentityCredentials.LoginToken != "" {
+			locParams.player_identity.login_token = C.CString(lp.PlayerIdentityCredentials.LoginToken)
+		}
+		locator := C.Worker_Locator_Create(addr, C.ushort(port), locParams)
+		connection_future = C.Worker_Locator_ConnectAsync(locator, &params)
+	} else {
+		connection_future = C.Worker_ConnectAsync(addr, C.ushort(port), C.CString(ss.WorkerID), &params)
+	}
 
 	ss.connection = C.Worker_ConnectionFuture_Get(connection_future, nil)
 	//TODO: call on shutdown -> C.Worker_ConnectionFuture_Destroy(connection_future)
