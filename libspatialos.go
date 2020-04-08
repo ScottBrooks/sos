@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"strconv"
 
-	"math/rand"
 	"os"
 	"os/signal"
 	"unsafe"
@@ -223,11 +222,6 @@ type SpatialSystem struct {
 	handler Adapter
 }
 
-func (ss *SpatialSystem) sendComponentUpdate(id int64, u *C.Worker_ComponentUpdate) {
-	var params C.Worker_UpdateParameters
-
-	C.Worker_Connection_SendComponentUpdate(ss.connection, C.int64_t(id), u, &params)
-}
 func (ss *SpatialSystem) AddDisturbance(x, y float32, amount float32) {
 }
 
@@ -270,7 +264,7 @@ func (ss *SpatialSystem) Shutdown() {
 func NewSpatialSystem(handler Adapter, host string, port int, workerID string, lp *WorkerLocatorParams) *SpatialSystem {
 	wt := handler.WorkerType()
 	if workerID == "" {
-		workerID = fmt.Sprintf("%s_%d", wt, rand.Intn(1024))
+		workerID = fmt.Sprintf("%s_%d", wt, os.Getpid())
 	}
 	ss := SpatialSystem{
 		WorkerID: workerID,
@@ -288,8 +282,10 @@ func NewSpatialSystem(handler Adapter, host string, port int, workerID string, l
 	params.logsink_count = 1
 	logsink := (*C.Worker_LogsinkParameters)(C.calloc(C.sizeof_Worker_LogsinkParameters, 1))
 	logsink.logsink_type = 5 // STDERR
-	logsink.filter_parameters.categories = 0xffff
-	logsink.filter_parameters.level = 0
+	//logsink.filter_parameters.categories = 0xffff
+	logsink.filter_parameters.categories = 0x33
+	//logsink.filter_parameters.level = 2
+	logsink.filter_parameters.level = 3
 	params.logsinks = logsink
 
 	var connection_future *C.Worker_ConnectionFuture
@@ -425,7 +421,10 @@ func (ss *SpatialSystem) UpdateComponent(ID EntityID, CID ComponentID, comp inte
 
 	var params C.Worker_UpdateParameters
 
-	C.Worker_Connection_SendComponentUpdate(ss.connection, C.int64_t(ID), &update, &params)
+	result := C.Worker_Connection_SendComponentUpdate(ss.connection, C.int64_t(ID), &update, &params)
+	if result != 0 {
+		log.Printf("UpdateComponentFailure: %d", result)
+	}
 }
 
 func (ss *SpatialSystem) EntityQuery(bc BaseConstraint, fullQuery bool, components []ComponentID) RequestID {

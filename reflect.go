@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"unsafe"
 
+	"io/ioutil"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,6 +23,12 @@ var log = logrus.New()
 
 func init() {
 	//log.SetLevel(logrus.DebugLevel)
+	SilenceLogs()
+}
+
+func SilenceLogs() {
+	log.Printf("Silencing logs from spatialos")
+	log.SetOutput(ioutil.Discard)
 }
 
 func handleStructField(o *C.Schema_Object, i int, f reflect.Value) {
