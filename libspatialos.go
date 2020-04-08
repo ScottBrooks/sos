@@ -214,7 +214,6 @@ type SpatialSystem struct {
 	connection *C.Worker_Connection
 	LogMetrics bool
 
-	Entities          []spatialEntity
 	InCriticalSection bool
 	TickCount         int
 	WorkerID          string
@@ -477,26 +476,9 @@ func (ss *SpatialSystem) onCriticalSection(op *C.Worker_CriticalSectionOp) {
 func (ss *SpatialSystem) onAddEntity(op *C.Worker_AddEntityOp) {
 	ss.handler.OnAddEntity(AddEntityOp{ID: EntityID(op.entity_id)})
 
-	e := spatialEntity{}
-	e.ID = int64(op.entity_id)
-	ss.Entities = append(ss.Entities, e)
 }
 func (ss *SpatialSystem) onRemoveEntity(op *C.Worker_RemoveEntityOp) {
 	ss.handler.OnRemoveEntity(RemoveEntityOp{ID: EntityID(op.entity_id)})
-
-	index := -1
-	for i, e := range ss.Entities {
-		if e.ID == int64(op.entity_id) {
-			index = i
-			break
-
-		}
-	}
-	if index >= 0 {
-		log.Printf("Removing entity from our view: %d", op.entity_id)
-		ss.Entities = append(ss.Entities[:index], ss.Entities[index+1:]...)
-	}
-
 }
 func (ss *SpatialSystem) onReserveEntityIds(op *C.Worker_ReserveEntityIdsResponseOp) {
 	ss.handler.OnReserveEntityIds(ReserveEntityIdsOp{RID: RequestID(op.request_id), StatusCode: uint8(op.status_code), Message: C.GoString(op.message), FirstID: EntityID(op.first_entity_id), Num: int(op.number_of_entity_ids)})
@@ -506,10 +488,6 @@ func (ss *SpatialSystem) onCreateEntity(op *C.Worker_CreateEntityResponseOp) {
 }
 func (ss *SpatialSystem) onDeleteEntity(op *C.Worker_DeleteEntityResponseOp) {
 	ss.handler.OnDeleteEntity(DeleteEntityOp{RID: RequestID(op.request_id), ID: EntityID(op.entity_id), StatusCode: uint8(op.status_code), Message: C.GoString(op.message)})
-	if op.status_code == 1 {
-		//log.Printf("DeleteEntity: %+v %s", op, C.GoString(op.message))
-		ss.Remove(int64(op.entity_id))
-	}
 }
 func (ss *SpatialSystem) onEntityQueryResponse(op *C.Worker_EntityQueryResponseOp) {
 	log.Printf("Got a response: %+v: %s", op, C.GoString(op.message))
@@ -557,21 +535,6 @@ func (ss *SpatialSystem) onRemoveComponent(op *C.Worker_RemoveComponentOp) {
 
 func (ss *SpatialSystem) onAuthorityChange(op *C.Worker_AuthorityChangeOp) {
 	ss.handler.OnAuthorityChange(AuthorityChangeOp{ID: EntityID(op.entity_id), CID: ComponentID(op.component_id), Authority: uint8(op.authority)})
-
-	e := ss.GetEntityByID(int64(op.entity_id))
-	if e == nil {
-		log.Printf("Could not find entity matchining id: %d", op.entity_id)
-		return
-	}
-	if op.authority == 2 {
-		log.Printf("Pending loss")
-		e.PendingAuthorityLoss()
-	} else if op.authority == 1 {
-		e.HasAuthority = true
-	} else {
-		e.HasAuthority = false
-	}
-
 }
 func (ss *SpatialSystem) onComponentUpdate(op *C.Worker_ComponentUpdateOp) {
 	c, err := ss.handler.AllocComponent(EntityID(op.entity_id), ComponentID(op.update.component_id))
