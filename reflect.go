@@ -90,7 +90,6 @@ func handleStructField(o *C.Schema_Object, i int, f reflect.Value) {
 		}
 	case reflect.Ptr:
 		if !f.IsZero() {
-			log.Printf("Got a pointer: %+v %+v", f, reflect.Indirect(f))
 			handleStructField(o, i, reflect.Indirect(f))
 		}
 
@@ -315,11 +314,4 @@ func getCompoundObject(i int, f float32, name string) *C.Schema_Object {
 	C.Schema_AddBytes(sobj, 1, (*C.uchar)(C.CBytes([]byte(name))), C.uint(len(name)))
 
 	return obj
-}
-
-func blankSchemaObject() *C.Schema_Object {
-	st := C.Schema_CreateComponentData()
-	obj := C.Schema_GetComponentDataFields(st)
-	return obj
-
 }

@@ -9,7 +9,7 @@ type spatialEntity struct {
 }
 
 func (se *spatialEntity) HasStalePosition() bool {
-	delta := time.Now().Sub(se.LastPositionUpdate)
+	delta := time.Since(se.LastPositionUpdate)
 	return delta > time.Second
 }
 
